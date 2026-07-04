@@ -74,13 +74,18 @@ def main():
     else:
         print(f"  {bold('直达')}: 无")
 
-    # 最早到达路径 — 最后一段的到达时间加粗
+    # 最早到达路径 — 最后一段的到达时间加粗，标注换乘时间
     path = result["path"]
     if path:
         print(f"  {bold('换乘')} ({len(path)} 段):")
         for i, (frm, to, tc, d, a) in enumerate(path, 1):
             a_str = bold(fmt_time(a)) if i == len(path) else fmt_time(a)
-            print(f"    {i}. {frm} {fmt_time(d)} ──({tc})──→ {to} {a_str}")
+            transfer = ""
+            if i < len(path):
+                next_d = path[i][3]  # 下一段出发时间
+                wait = next_d - a
+                transfer = f"  │ 等 {wait}min"
+            print(f"    {i}. {frm} {fmt_time(d)} ──({tc})──→ {to} {a_str}{transfer}")
 
     # ================================================================
     # ⏰ 最晚出发
@@ -99,13 +104,18 @@ def main():
     else:
         print(f"  {bold('直达')}: 无")
 
-    # 最晚出发路径 — 第一段出发时间加粗
+    # 最晚出发路径 — 第一段出发时间加粗，标注换乘时间
     ld_path = result.get("latest_departure_path")
     if ld_path:
         print(f"  {bold('换乘')} ({len(ld_path)} 段):")
         for i, (frm, to, tc, d, a) in enumerate(ld_path, 1):
             d_str = bold(fmt_time(d)) if i == 1 else fmt_time(d)
-            print(f"    {i}. {frm} {d_str} ──({tc})──→ {to} {fmt_time(a)}")
+            transfer = ""
+            if i < len(ld_path):
+                next_d = ld_path[i][3]
+                wait = next_d - a
+                transfer = f"  │ 等 {wait}min"
+            print(f"    {i}. {frm} {d_str} ──({tc})──→ {to} {fmt_time(a)}{transfer}")
 
 
 if __name__ == "__main__":
