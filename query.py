@@ -19,11 +19,6 @@ def bold(s: str) -> str:
     return f"\033[1m{s}\033[0m"
 
 
-def fmt_path_leg(frm: str, d: int, tc: str, to: str, a: int) -> str:
-    """格式化一段路径，时间加粗."""
-    return f"{frm} {bold(fmt_time(d))} ──({tc})──→ {to} {bold(fmt_time(a))}"
-
-
 def main():
     print("=" * 60)
     print("  Railway Reachability Engine")
@@ -69,54 +64,46 @@ def main():
     # 🕐 最早到达
     # ================================================================
     print("  ── 🕐 最早到达 ──")
-    if result["reachable"]:
-        print(f"  换乘可达，到达 {result['earliest_arrival']}")
-    elif result["earliest_arrival"] is not None:
-        print(f"  DDL 前不可达，最早到达 {result['earliest_arrival']}")
-    else:
+    if not result["earliest_arrival"]:
         print("  无任何可达路径")
 
-    # 直达最早
+    # 直达最早 — 只粗体到达时间
     if result["direct_earliest"]:
-        dep = result["direct_dep"]
-        arr = result["direct_earliest"]
         tc = result["direct_train"]
-        print(f"  直达: {origin} {dep} ──({tc})──→ {dest} {arr}")
+        print(f"  直达: {origin} {result['direct_dep']} ──({tc})──→ {dest} {bold(result['direct_earliest'])}")
     else:
         print("  直达: 无")
 
-    # 最早到达路径
+    # 最早到达路径 — 最后一段的到达时间加粗
     path = result["path"]
     if path:
         print(f"  换乘路径 ({len(path)} 段):")
         for i, (frm, to, tc, d, a) in enumerate(path, 1):
-            print(f"    {i}. {frm} {fmt_time(d)} ──({tc})──→ {to} {fmt_time(a)}")
+            a_str = bold(fmt_time(a)) if i == len(path) else fmt_time(a)
+            print(f"    {i}. {frm} {fmt_time(d)} ──({tc})──→ {to} {a_str}")
 
     # ================================================================
     # ⏰ 最晚出发
     # ================================================================
     print()
     print("  ── ⏰ 最晚出发 ──")
-    if result["latest_departure"]:
-        print(f"  最晚 {result['latest_departure']} 出发可赶上 DDL {ddl}")
-    else:
+    if not result["latest_departure"]:
         print("  无可行方案")
 
-    # 直达最晚
+    # 直达最晚 — 只粗体出发时间
     if result["direct_latest_dep"]:
-        dep = result["direct_latest_dep"]
-        arr = result["direct_latest_arr"]
         tc = result["direct_latest_train"]
-        print(f"  直达: {origin} {dep} ──({tc})──→ {dest} {arr}")
+        print(f"  直达: {origin} {bold(result['direct_latest_dep'])} ──({tc})──→ {dest} {result['direct_latest_arr']}")
     else:
         print("  直达: 无")
 
-    # 最晚出发路径
+    # 最晚出发路径 — 第一段出发时间加粗
     ld_path = result.get("latest_departure_path")
     if ld_path:
         print(f"  换乘路径 ({len(ld_path)} 段):")
         for i, (frm, to, tc, d, a) in enumerate(ld_path, 1):
-            print(f"    {i}. {frm} {fmt_time(d)} ──({tc})──→ {to} {fmt_time(a)}")
+            d_str = bold(fmt_time(d)) if i == 1 else fmt_time(d)
+            print(f"    {i}. {frm} {d_str} ──({tc})──→ {to} {fmt_time(a)}")
 
 
 if __name__ == "__main__":
