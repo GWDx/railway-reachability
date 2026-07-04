@@ -243,6 +243,53 @@ def reconstruct_path(
 # ---------------------------------------------------------------------------
 
 
+def direct_earliest_arrival(
+    trains: list[Train],
+    origin: str,
+    dest: str,
+    start_time_min: int,
+) -> tuple[int | None, str | None]:
+    """仅考虑直达（同车不换乘）的最早到达时间.
+
+    Args:
+        trains: 所有列车
+        origin: 起点站
+        dest: 终点站
+        start_time_min: 出发时间（分钟数）
+
+    Returns:
+        (arr_min, train_code): 最早到达分钟数及车次，无直达返回 (None, None)
+    """
+    best_arr: int | None = None
+    best_train: str | None = None
+
+    for train in trains:
+        origin_idx: int | None = None
+        origin_dep: int | None = None
+
+        for si, stop in enumerate(train.stops):
+            # 找到 origin 站，记录出发时间
+            if stop.station == origin and stop.dep_min is not None:
+                if stop.dep_min >= start_time_min:
+                    origin_idx = si
+                    origin_dep = stop.dep_min
+                    break
+            # 已经过了 origin 才找到 → 这趟车不适用
+
+        if origin_idx is None:
+            continue
+
+        # 在 origin 之后的站中找 dest
+        for stop in train.stops[origin_idx + 1:]:
+            if stop.station == dest and stop.arr_min is not None:
+                if best_arr is None or stop.arr_min < best_arr:
+                    best_arr = stop.arr_min
+                    best_train = train.code
+                break
+
+    return best_arr, best_train
+
+
 def reachability(
     trains: list[Train],
     dep_index: dict[str, list[tuple[int, int, int]]],
@@ -271,10 +318,14 @@ def reachability(
     best, prev = earliest_arrival(trains, dep_index, origin, start_min, transfer_min, ddl_min)
 
     earliest = best.get(dest)
+    direct_arr, direct_train = direct_earliest_arrival(trains, origin, dest, start_min)
+
     if earliest is None:
         return {
             "reachable": False,
             "earliest_arrival": None,
+            "direct_earliest": fmt_time(direct_arr) if direct_arr else None,
+            "direct_train": direct_train,
             "path": None,
         }
 
@@ -283,5 +334,7 @@ def reachability(
     return {
         "reachable": earliest <= ddl_min,
         "earliest_arrival": fmt_time(earliest),
+        "direct_earliest": fmt_time(direct_arr) if direct_arr else None,
+        "direct_train": direct_train,
         "path": path,
     }

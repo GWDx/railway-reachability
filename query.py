@@ -63,7 +63,11 @@ def main():
             print(f"    最早到达: {result['earliest_arrival']}")
         else:
             print("    ❌ 不可达（无任何路径）")
-
+    # 直达信息
+    if result["direct_earliest"]:
+        print(f"\n    🚄 直达最早: {result['direct_earliest']} ({result['direct_train']})")
+    else:
+        print(f"\n    🚄 直达: 无")
     # 打印路径
     path = result["path"]
     if path:
