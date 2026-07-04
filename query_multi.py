@@ -35,7 +35,7 @@ def main():
 
     origins = ["合肥南", "合肥"]
     dests = ["上海虹桥", "上海"]
-    start = "20:00"
+    start = "19:45"
     ddl = "23:59"
 
     print(f"\n[2] 查询: {origins} → {dests}")
