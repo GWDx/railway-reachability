@@ -14,6 +14,16 @@ JSONL_PATH = Path(__file__).resolve().parent / "data" / "train_stops.jsonl"
 TRANSFER_MIN = 12  # 同站换乘最小缓冲时间（分钟）
 
 
+def bold(s: str) -> str:
+    """ANSI 粗体."""
+    return f"\033[1m{s}\033[0m"
+
+
+def fmt_path_leg(frm: str, d: int, tc: str, to: str, a: int) -> str:
+    """格式化一段路径，时间加粗."""
+    return f"{frm} {bold(fmt_time(d))} ──({tc})──→ {to} {bold(fmt_time(a))}"
+
+
 def main():
     print("=" * 60)
     print("  Railway Reachability Engine")
