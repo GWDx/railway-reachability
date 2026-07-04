@@ -142,7 +142,7 @@ def earliest_arrival(
     start_time_min: int,
     transfer_min: int = 12,
     ddl_min: int | None = None,
-) -> tuple[dict[str, int], dict[str, tuple[str, str]]]:
+) -> tuple[dict[str, int], dict[str, tuple[str, str, int, int]]]:
     """计算从 origin 出发的最早到达时间 (EAT).
 
     Args:
@@ -156,10 +156,11 @@ def earliest_arrival(
     Returns:
         (best_arrival, prev):
             best_arrival[station] = 最早到达分钟数
-            prev[station] = (上一站, 车次) 用于路径回溯
+            prev[station] = (prev_station, train_code, dep_min, arr_min)
+                用于路径回溯，包含上下车时间
     """
     best: dict[str, int] = {origin: start_time_min}
-    prev: dict[str, tuple[str, str]] = {}  # station → (prev_station, train_code)
+    prev: dict[str, tuple[str, str, int, int]] = {}  # station → (prev_station, train, dep, arr)
 
     pq: list[_PQItem] = [_PQItem(arr_min=start_time_min, station=origin, prev_station=None, prev_train=None)]
     heapq.heapify(pq)
@@ -201,7 +202,7 @@ def earliest_arrival(
 
                 if arr < best.get(stop.station, 10**9):
                     best[stop.station] = arr
-                    prev[stop.station] = (cur_station, train.code)
+                    prev[stop.station] = (cur_station, train.code, dep, arr)
                     heapq.heappush(
                         pq, _PQItem(
                             arr_min=arr,
@@ -219,20 +220,20 @@ def earliest_arrival(
 
 
 def reconstruct_path(
-    prev: dict[str, tuple[str, str]],
+    prev: dict[str, tuple[str, str, int, int]],
     origin: str,
     dest: str,
-) -> list[tuple[str, str, str]]:
-    """从 prev 字典回溯完整路径.
+) -> list[tuple[str, str, str, int, int]]:
+    """从 prev 字典回溯完整路径（含时间）。
 
     Returns:
-        [(from_station, to_station, train_code), ...]
+        [(from_station, to_station, train_code, dep_min, arr_min), ...]
     """
-    path: list[tuple[str, str, str]] = []
+    path: list[tuple[str, str, str, int, int]] = []
     cur = dest
     while cur in prev:
-        from_station, train_code = prev[cur]
-        path.append((from_station, cur, train_code))
+        from_station, train_code, dep_min, arr_min = prev[cur]
+        path.append((from_station, cur, train_code, dep_min, arr_min))
         cur = from_station
     path.reverse()
     return path
@@ -248,46 +249,38 @@ def direct_earliest_arrival(
     origin: str,
     dest: str,
     start_time_min: int,
-) -> tuple[int | None, str | None]:
-    """仅考虑直达（同车不换乘）的最早到达时间.
-
-    Args:
-        trains: 所有列车
-        origin: 起点站
-        dest: 终点站
-        start_time_min: 出发时间（分钟数）
+) -> tuple[int | None, str | None, int | None]:
+    """仅考虑直达（同车不换乘）的最早到达时间。
 
     Returns:
-        (arr_min, train_code): 最早到达分钟数及车次，无直达返回 (None, None)
+        (arr_min, train_code, dep_min): 最早到达分钟数、车次、出发时间，无直达返回 (None, None, None)
     """
     best_arr: int | None = None
     best_train: str | None = None
+    best_dep: int | None = None
 
     for train in trains:
         origin_idx: int | None = None
-        origin_dep: int | None = None
 
         for si, stop in enumerate(train.stops):
-            # 找到 origin 站，记录出发时间
             if stop.station == origin and stop.dep_min is not None:
                 if stop.dep_min >= start_time_min:
                     origin_idx = si
-                    origin_dep = stop.dep_min
                     break
-            # 已经过了 origin 才找到 → 这趟车不适用
 
         if origin_idx is None:
             continue
 
-        # 在 origin 之后的站中找 dest
+        origin_dep = train.stops[origin_idx].dep_min
         for stop in train.stops[origin_idx + 1:]:
             if stop.station == dest and stop.arr_min is not None:
                 if best_arr is None or stop.arr_min < best_arr:
                     best_arr = stop.arr_min
                     best_train = train.code
+                    best_dep = origin_dep
                 break
 
-    return best_arr, best_train
+    return best_arr, best_train, best_dep
 
 
 def reachability(
@@ -322,17 +315,19 @@ def reachability(
     best, prev = earliest_arrival(trains, dep_index, origin, start_min, transfer_min, ddl_min)
 
     earliest = best.get(dest)
-    direct_arr, direct_train = direct_earliest_arrival(trains, origin, dest, start_min)
+    direct_arr, direct_train, direct_dep = direct_earliest_arrival(trains, origin, dest, start_min)
     latest_dep, latest_prev = latest_departure(trains, dep_index, origin, dest, ddl_min, transfer_min)
-    direct_ld, direct_ld_train = direct_latest_departure(trains, origin, dest, ddl_min)
+    direct_ld, direct_ld_train, direct_ld_arr = direct_latest_departure(trains, origin, dest, ddl_min)
 
     base = {
         "direct_earliest": fmt_time(direct_arr) if direct_arr else None,
         "direct_train": direct_train,
+        "direct_dep": fmt_time(direct_dep) if direct_dep else None,
         "latest_departure": fmt_time(latest_dep) if latest_dep else None,
         "latest_departure_path": reconstruct_path(latest_prev, origin, dest) if latest_prev else None,
         "direct_latest_dep": fmt_time(direct_ld) if direct_ld else None,
         "direct_latest_train": direct_ld_train,
+        "direct_latest_arr": fmt_time(direct_ld_arr) if direct_ld_arr else None,
     }
 
     if earliest is None:
@@ -363,14 +358,15 @@ def direct_latest_departure(
     origin: str,
     dest: str,
     ddl_min: int,
-) -> tuple[int | None, str | None]:
+) -> tuple[int | None, str | None, int | None]:
     """仅考虑直达的最晚出发时间（赶在 DDL 前到达）。
 
     Returns:
-        (dep_min, train_code): 最晚出发分钟数及车次，无直达返回 (None, None)
+        (dep_min, train_code, arr_min): 最晚出发分钟数、车次、到达时间，无直达返回 (None, None, None)
     """
     best_dep: int | None = None
     best_train: str | None = None
+    best_arr: int | None = None
 
     for train in trains:
         origin_dep: int | None = None
@@ -387,8 +383,9 @@ def direct_latest_departure(
             if best_dep is None or origin_dep > best_dep:
                 best_dep = origin_dep
                 best_train = train.code
+                best_arr = dest_arr
 
-    return best_dep, best_train
+    return best_dep, best_train, best_arr
 
 
 def latest_departure(

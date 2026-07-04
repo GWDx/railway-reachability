@@ -54,45 +54,59 @@ def main():
     result = reachability(trains, dep_index, origin, dest, start, ddl, transfer_min=TRANSFER_MIN)
 
     print()
-    if result["reachable"]:
-        print("    ✅ 可达！")
-        print(f"    到达时间: {result['earliest_arrival']}")
-    else:
-        if result["earliest_arrival"] is not None:
-            print(f"    ❌ 不可达 (DDL {ddl} 前)")
-            print(f"    最早到达: {result['earliest_arrival']}")
-        else:
-            print("    ❌ 不可达（无任何路径）")
-    # 直达信息
-    if result["direct_earliest"]:
-        print(f"\n    🚄 直达最早到达: {result['direct_earliest']} ({result['direct_train']})")
-    else:
-        print("\n    🚄 直达最早到达: 无")
-    if result["direct_latest_dep"]:
-        print(f"    🚄 直达最晚出发: {result['direct_latest_dep']} ({result['direct_latest_train']})")
-    else:
-        print("    🚄 直达最晚出发: 无")
 
-    # 最晚出发（允许换乘）
-    if result["latest_departure"]:
-        print(f"\n    ⏰ 赶在 DDL 前的最晚出发: {result['latest_departure']}")
+    # ================================================================
+    # 🕐 最早到达
+    # ================================================================
+    print("  ── 🕐 最早到达 ──")
+    if result["reachable"]:
+        print(f"  换乘可达，到达 {result['earliest_arrival']}")
+    elif result["earliest_arrival"] is not None:
+        print(f"  DDL 前不可达，最早到达 {result['earliest_arrival']}")
     else:
-        print("\n    ⏰ 赶在 DDL 前的最晚出发: 无可行方案")
+        print("  无任何可达路径")
+
+    # 直达最早
+    if result["direct_earliest"]:
+        dep = result["direct_dep"]
+        arr = result["direct_earliest"]
+        tc = result["direct_train"]
+        print(f"  直达: {origin} {dep} ──({tc})──→ {dest} {arr}")
+    else:
+        print("  直达: 无")
+
     # 最早到达路径
     path = result["path"]
     if path:
-        print(f"\n    🕐 最早到达路径 ({len(path)} 段):")
-        for i, (frm, to, tc) in enumerate(path, 1):
-            print(f"      {i}. {frm} ──({tc})──→ {to}")
-    else:
-        print("\n    无可用路径。")
+        print(f"  换乘路径 ({len(path)} 段):")
+        for i, (frm, to, tc, d, a) in enumerate(path, 1):
+            print(f"    {i}. {frm} {fmt_time(d)} ──({tc})──→ {to} {fmt_time(a)}")
 
-    # 最晚出发路径（可能不同）
+    # ================================================================
+    # ⏰ 最晚出发
+    # ================================================================
+    print()
+    print("  ── ⏰ 最晚出发 ──")
+    if result["latest_departure"]:
+        print(f"  最晚 {result['latest_departure']} 出发可赶上 DDL {ddl}")
+    else:
+        print("  无可行方案")
+
+    # 直达最晚
+    if result["direct_latest_dep"]:
+        dep = result["direct_latest_dep"]
+        arr = result["direct_latest_arr"]
+        tc = result["direct_latest_train"]
+        print(f"  直达: {origin} {dep} ──({tc})──→ {dest} {arr}")
+    else:
+        print("  直达: 无")
+
+    # 最晚出发路径
     ld_path = result.get("latest_departure_path")
-    if ld_path and ld_path != path:
-        print(f"\n    ⏰ 最晚出发路径 ({len(ld_path)} 段):")
-        for i, (frm, to, tc) in enumerate(ld_path, 1):
-            print(f"      {i}. {frm} ──({tc})──→ {to}")
+    if ld_path:
+        print(f"  换乘路径 ({len(ld_path)} 段):")
+        for i, (frm, to, tc, d, a) in enumerate(ld_path, 1):
+            print(f"    {i}. {frm} {fmt_time(d)} ──({tc})──→ {to} {fmt_time(a)}")
 
 
 if __name__ == "__main__":
