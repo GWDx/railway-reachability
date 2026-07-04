@@ -142,7 +142,6 @@ def main():
 
             record = {
                 "train_code": code,
-                "station_train_code": raw,
                 "train_no": tno,
                 "query_date": QUERY_DATE,
                 "stops": [{
