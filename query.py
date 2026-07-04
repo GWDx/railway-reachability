@@ -70,14 +70,14 @@ def main():
     # 直达最早 — 只粗体到达时间
     if result["direct_earliest"]:
         tc = result["direct_train"]
-        print(f"  直达: {origin} {result['direct_dep']} ──({tc})──→ {dest} {bold(result['direct_earliest'])}")
+        print(f"  {bold('直达')}: {origin} {result['direct_dep']} ──({tc})──→ {dest} {bold(result['direct_earliest'])}")
     else:
-        print("  直达: 无")
+        print(f"  {bold('直达')}: 无")
 
     # 最早到达路径 — 最后一段的到达时间加粗
     path = result["path"]
     if path:
-        print(f"  换乘路径 ({len(path)} 段):")
+        print(f"  {bold('换乘')} ({len(path)} 段):")
         for i, (frm, to, tc, d, a) in enumerate(path, 1):
             a_str = bold(fmt_time(a)) if i == len(path) else fmt_time(a)
             print(f"    {i}. {frm} {fmt_time(d)} ──({tc})──→ {to} {a_str}")
@@ -93,14 +93,16 @@ def main():
     # 直达最晚 — 只粗体出发时间
     if result["direct_latest_dep"]:
         tc = result["direct_latest_train"]
-        print(f"  直达: {origin} {bold(result['direct_latest_dep'])} ──({tc})──→ {dest} {result['direct_latest_arr']}")
+        print(
+            f"  {bold('直达')}: {origin} {bold(result['direct_latest_dep'])} ──({tc})──→ {dest} {result['direct_latest_arr']}"
+        )
     else:
-        print("  直达: 无")
+        print(f"  {bold('直达')}: 无")
 
     # 最晚出发路径 — 第一段出发时间加粗
     ld_path = result.get("latest_departure_path")
     if ld_path:
-        print(f"  换乘路径 ({len(ld_path)} 段):")
+        print(f"  {bold('换乘')} ({len(ld_path)} 段):")
         for i, (frm, to, tc, d, a) in enumerate(ld_path, 1):
             d_str = bold(fmt_time(d)) if i == 1 else fmt_time(d)
             print(f"    {i}. {frm} {d_str} ──({tc})──→ {to} {fmt_time(a)}")
