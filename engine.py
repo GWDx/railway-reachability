@@ -141,6 +141,7 @@ def earliest_arrival(
     origin: str,
     start_time_min: int,
     transfer_min: int = 12,
+    ddl_min: int | None = None,
 ) -> tuple[dict[str, int], dict[str, tuple[str, str]]]:
     """计算从 origin 出发的最早到达时间 (EAT).
 
@@ -150,6 +151,7 @@ def earliest_arrival(
         origin: 起点车站名（精确匹配）
         start_time_min: 出发时间（分钟数）
         transfer_min: 同站换乘最小缓冲时间（分钟）
+        ddl_min: DDL 截止时间，超过此时间的状态不再探索。None 表示无限制。
 
     Returns:
         (best_arrival, prev):
@@ -171,6 +173,10 @@ def earliest_arrival(
         if cur_arr > best.get(cur_station, 10**9):
             continue
 
+        # DDL 剪枝：PQ 按到达时间排序，超过 DDL 的后续只会更晚
+        if ddl_min is not None and cur_arr > ddl_min:
+            break
+
         # 本站在此之后可以乘坐的列车
         wait_from = cur_arr
         if cur_station != origin:
@@ -187,7 +193,11 @@ def earliest_arrival(
                 stop = train.stops[sj]
                 arr = stop.arr_min
                 if arr is None:
-                    continue  # 不应该发生，但安全处理
+                    continue
+
+                # DDL 剪枝：同行车后续站只会更晚
+                if ddl_min is not None and arr > ddl_min:
+                    break
 
                 if arr < best.get(stop.station, 10**9):
                     best[stop.station] = arr
@@ -258,7 +268,7 @@ def reachability(
     if start_min is None or ddl_min is None:
         raise ValueError(f"时间格式错误: {start_time}, {ddl}")
 
-    best, prev = earliest_arrival(trains, dep_index, origin, start_min, transfer_min)
+    best, prev = earliest_arrival(trains, dep_index, origin, start_min, transfer_min, ddl_min)
 
     earliest = best.get(dest)
     if earliest is None:
