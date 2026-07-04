@@ -304,9 +304,13 @@ def reachability(
     Returns:
         {
             "reachable": bool,
-            "arrival": str | None,
+            "earliest_arrival": str | None,
             "path": [(from, to, train), ...] | None,
-            "earliest_arrival": str,
+            "direct_earliest": str | None,
+            "direct_train": str | None,
+            "latest_departure": str | None,
+            "direct_latest_dep": str | None,
+            "direct_latest_train": str | None,
         }
     """
     start_min = parse_time(start_time)
@@ -319,14 +323,24 @@ def reachability(
 
     earliest = best.get(dest)
     direct_arr, direct_train = direct_earliest_arrival(trains, origin, dest, start_min)
+    latest_dep, latest_prev = latest_departure(trains, dep_index, origin, dest, ddl_min, transfer_min)
+    direct_ld, direct_ld_train = direct_latest_departure(trains, origin, dest, ddl_min)
+
+    base = {
+        "direct_earliest": fmt_time(direct_arr) if direct_arr else None,
+        "direct_train": direct_train,
+        "latest_departure": fmt_time(latest_dep) if latest_dep else None,
+        "latest_departure_path": reconstruct_path(latest_prev, origin, dest) if latest_prev else None,
+        "direct_latest_dep": fmt_time(direct_ld) if direct_ld else None,
+        "direct_latest_train": direct_ld_train,
+    }
 
     if earliest is None:
         return {
             "reachable": False,
             "earliest_arrival": None,
-            "direct_earliest": fmt_time(direct_arr) if direct_arr else None,
-            "direct_train": direct_train,
             "path": None,
+            **base,
         }
 
     path = reconstruct_path(prev, origin, dest)
@@ -334,7 +348,77 @@ def reachability(
     return {
         "reachable": earliest <= ddl_min,
         "earliest_arrival": fmt_time(earliest),
-        "direct_earliest": fmt_time(direct_arr) if direct_arr else None,
-        "direct_train": direct_train,
         "path": path,
+        **base,
     }
+
+
+# ---------------------------------------------------------------------------
+# Latest Departure 查询
+# ---------------------------------------------------------------------------
+
+
+def direct_latest_departure(
+    trains: list[Train],
+    origin: str,
+    dest: str,
+    ddl_min: int,
+) -> tuple[int | None, str | None]:
+    """仅考虑直达的最晚出发时间（赶在 DDL 前到达）。
+
+    Returns:
+        (dep_min, train_code): 最晚出发分钟数及车次，无直达返回 (None, None)
+    """
+    best_dep: int | None = None
+    best_train: str | None = None
+
+    for train in trains:
+        origin_dep: int | None = None
+        dest_arr: int | None = None
+
+        for stop in train.stops:
+            if stop.station == origin and stop.dep_min is not None:
+                origin_dep = stop.dep_min
+            if stop.station == dest and stop.arr_min is not None and origin_dep is not None:
+                dest_arr = stop.arr_min
+                break
+
+        if origin_dep is not None and dest_arr is not None and dest_arr <= ddl_min:
+            if best_dep is None or origin_dep > best_dep:
+                best_dep = origin_dep
+                best_train = train.code
+
+    return best_dep, best_train
+
+
+def latest_departure(
+    trains: list[Train],
+    dep_index: dict[str, list[tuple[int, int, int]]],
+    origin: str,
+    dest: str,
+    ddl_min: int,
+    transfer_min: int = 12,
+) -> tuple[int | None, dict | None]:
+    """计算赶在 DDL 前到达的最晚出发时间（允许换乘）。
+
+    使用二分搜索 + earliest_arrival。
+
+    Returns:
+        (dep_min, prev): 最晚出发分钟数及路径回溯字典，无路径返回 (None, None)
+    """
+    lo, hi = 0, ddl_min  # 出发时间不可能晚于 DDL
+    best_dep: int | None = None
+    best_prev: dict | None = None
+
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        best, prev = earliest_arrival(trains, dep_index, origin, mid, transfer_min, ddl_min)
+        arr = best.get(dest)
+        if arr is not None and arr <= ddl_min:
+            best_dep = mid
+            best_prev = prev
+            lo = mid + 1  # 尝试更晚出发
+        else:
+            hi = mid - 1  # 必须更早出发
+
+    return best_dep, best_prev

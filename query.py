@@ -35,7 +35,7 @@ def main():
     origin = "合肥南"
     dest = "上海虹桥"
     start = "13:00"
-    ddl = "17:00"
+    ddl = "17:30"
 
     print(f"    起点: {origin}")
     print(f"    终点: {dest}")
@@ -65,17 +65,34 @@ def main():
             print("    ❌ 不可达（无任何路径）")
     # 直达信息
     if result["direct_earliest"]:
-        print(f"\n    🚄 直达最早: {result['direct_earliest']} ({result['direct_train']})")
+        print(f"\n    🚄 直达最早到达: {result['direct_earliest']} ({result['direct_train']})")
     else:
-        print(f"\n    🚄 直达: 无")
-    # 打印路径
+        print("\n    🚄 直达最早到达: 无")
+    if result["direct_latest_dep"]:
+        print(f"    🚄 直达最晚出发: {result['direct_latest_dep']} ({result['direct_latest_train']})")
+    else:
+        print("    🚄 直达最晚出发: 无")
+
+    # 最晚出发（允许换乘）
+    if result["latest_departure"]:
+        print(f"\n    ⏰ 赶在 DDL 前的最晚出发: {result['latest_departure']}")
+    else:
+        print("\n    ⏰ 赶在 DDL 前的最晚出发: 无可行方案")
+    # 最早到达路径
     path = result["path"]
     if path:
-        print(f"\n    路径 ({len(path)} 段):")
+        print(f"\n    🕐 最早到达路径 ({len(path)} 段):")
         for i, (frm, to, tc) in enumerate(path, 1):
             print(f"      {i}. {frm} ──({tc})──→ {to}")
     else:
         print("\n    无可用路径。")
+
+    # 最晚出发路径（可能不同）
+    ld_path = result.get("latest_departure_path")
+    if ld_path and ld_path != path:
+        print(f"\n    ⏰ 最晚出发路径 ({len(ld_path)} 段):")
+        for i, (frm, to, tc) in enumerate(ld_path, 1):
+            print(f"      {i}. {frm} ──({tc})──→ {to}")
 
 
 if __name__ == "__main__":
