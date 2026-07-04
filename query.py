@@ -11,6 +11,7 @@ from engine import load_trains, build_departure_index, reachability, fmt_time
 
 # --- 配置 ---
 JSONL_PATH = Path(__file__).resolve().parent / "data" / "train_stops.jsonl"
+TRANSFER_MIN = 12  # 同站换乘最小缓冲时间（分钟）
 
 
 def main():
@@ -40,30 +41,28 @@ def main():
     print(f"    终点: {dest}")
     print(f"    当前时间: {start}")
     print(f"    DDL: {ddl}")
-    print(f"    换乘缓冲: 12 分钟")
+    print(f"    换乘缓冲: {TRANSFER_MIN} 分钟")
 
     # 检查车站是否存在
     for name, label in [(origin, "起点"), (dest, "终点")]:
         if name not in dep_index:
             print(f"\n    ⚠ {label}站 '{name}' 不在数据中！")
-            print(f"    可出发站中包含 '合肥' 的:",
-                  [s for s in stations if "合肥" in s])
-            print(f"    可出发站中包含 '上海' 的:",
-                  [s for s in stations if "上海" in s])
+            print("    可出发站中包含 '合肥' 的:", [s for s in stations if "合肥" in s])
+            print("    可出发站中包含 '上海' 的:", [s for s in stations if "上海" in s])
             return
 
-    result = reachability(trains, dep_index, origin, dest, start, ddl, transfer_min=12)
+    result = reachability(trains, dep_index, origin, dest, start, ddl, transfer_min=TRANSFER_MIN)
 
     print()
     if result["reachable"]:
-        print(f"    ✅ 可达！")
+        print("    ✅ 可达！")
         print(f"    到达时间: {result['earliest_arrival']}")
     else:
         if result["earliest_arrival"] is not None:
             print(f"    ❌ 不可达 (DDL {ddl} 前)")
             print(f"    最早到达: {result['earliest_arrival']}")
         else:
-            print(f"    ❌ 不可达（无任何路径）")
+            print("    ❌ 不可达（无任何路径）")
 
     # 打印路径
     path = result["path"]
@@ -72,7 +71,7 @@ def main():
         for i, (frm, to, tc) in enumerate(path, 1):
             print(f"      {i}. {frm} ──({tc})──→ {to}")
     else:
-        print(f"\n    无可用路径。")
+        print("\n    无可用路径。")
 
 
 if __name__ == "__main__":
