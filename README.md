@@ -91,6 +91,10 @@ python query_multi.py
 | 可配换乘缓冲时间         | 余票、晚点、临客     |
 | CLI 查询                 | REST API、Web UI     |
 
+## 当前数据状态
+
+⚠️ **数据未收集完全**：`train_list.js` 包含 12,447 趟列车，目前仅通过 `get-stops.py` 从 12306 API 抓取了约 **3,000 班次** 的停站数据。
+
 ## 数据来源
 
 - `train_list.js`：2022 年静态车次目录（来自 12306）
