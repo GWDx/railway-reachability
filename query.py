@@ -35,7 +35,7 @@ def main():
     origin = "合肥南"
     dest = "上海虹桥"
     start = "13:00"
-    ddl = "16:00"
+    ddl = "17:00"
 
     print(f"    起点: {origin}")
     print(f"    终点: {dest}")
